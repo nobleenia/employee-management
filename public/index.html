@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Management</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Employee Management System</h1>
+  </header>
+
+  <main>
+    <section id="departments">
+      <h2>Departments</h2>
+      <ul id="department-list"></ul>
+      <form id="department-form">
+        <input type="text" id="department-name" placeholder="New Department Name" required>
+        <button type="submit">Add Department</button>
+      </form>
+    </section>
+
+    <section id="employees">
+      <h2>Employees</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Surname</th>
+            <th>Department</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="employee-table"></tbody>
+      </table>
+      <form id="employee-form">
+        <input type="text" id="employee-name" placeholder="First Name" required>
+        <input type="text" id="employee-surname" placeholder="Last Name" required>
+        <select id="employee-department"></select>
+        <button type="submit">Add Employee</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
