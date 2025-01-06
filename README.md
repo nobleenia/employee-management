@@ -69,13 +69,13 @@ employee-management/
 ├── routes/ # Express routes for APIs (auth, employees, departments)
 │  
 ├── public/ # Static frontend files (HTML, CSS, JS)
-│   │  
-│   ├── index.html # Main frontend HTML  
-│   │  
-│   ├── styles.css # CSS for the frontend  
-│   │ 
-│   └── script.js # JavaScript for the frontend  
-│ 
+   │  
+   ├── index.html # Main frontend HTML  
+   │  
+   ├── styles.css # CSS for the frontend  
+   │ 
+   └── script.js # JavaScript for the frontend  
+ 
 ├── middleware/ # Custom middleware for auth and role-based access  
 │  
 ├── docker-compose.yml # Docker configuration for multi-container setup
@@ -96,18 +96,15 @@ employee-management/
 - Install **Node.js** (v18+), **npm**, and **Docker**.
 
 ### Clone Repository
-```bash
-git clone <repository-url>
+```git clone <repository-url>
 cd employee-management```
 
 ### Install Dependencies
-```bash
-npm install```
+```npm install```
 
 ### Environment Variables
 Create a .env file in the root directory and configure the following variables:
-```makefile
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/employeeManagement?retryWrites=true&w=majority
+```MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/employeeManagement?retryWrites=true&w=majority
 PORT=3000
 JWT_SECRET=your_super_secret_key```
 
@@ -115,26 +112,21 @@ JWT_SECRET=your_super_secret_key```
 ### Locally
 
 1. Start MongoDB:  
-```bash
-mongod```
+```mongod```
 
 2. Start the server:  
-```bash
-npm start```
+```npm start```
 
 3. Open the app in the browser:  
-```bash
-http://localhost:3000```
+```http://localhost:3000```
 
 ### Using Docker
 
 1. Build and start containers:
-```bash
-docker-compose up --build -d```
+```docker-compose up --build -d```
 
 2. Access the app:
-```bash
-http://localhost:3000```
+```http://localhost:3000```
 
 ## API Endpoints
 
