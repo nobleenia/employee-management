@@ -65,27 +65,16 @@ A full-stack **CRUD Employee Management System** with authentication, role-based
 ## Project Structure
 employee-management/  
 ├── models/ # Mongoose schemas for Users, Employees, Departments
-│  
 ├── routes/ # Express routes for APIs (auth, employees, departments)
-│  
 ├── public/ # Static frontend files (HTML, CSS, JS)
-   │  
-   ├── index.html # Main frontend HTML  
-   │  
+   ├── index.html # Main frontend HTML    
    ├── styles.css # CSS for the frontend  
-   │ 
    └── script.js # JavaScript for the frontend  
- 
 ├── middleware/ # Custom middleware for auth and role-based access  
-│  
 ├── docker-compose.yml # Docker configuration for multi-container setup
-│ 
 ├── Dockerfile # Dockerfile for app container
-│  
 ├── server.js # Main Express app entry point
-│ 
 ├── package.json # Dependencies and scripts  
-│ 
 └── README.md # Documentation
 
 
