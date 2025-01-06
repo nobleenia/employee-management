@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
+const authenticate = require('../middleware/auth');
+const authorize = require('../middleware/role');
 
-// Get all employees
+// Get all employees (accessible to both admin and users)
 router.get('/', async (req, res) => {
   try {
     const employees = await Employee.find().populate('department', 'name');
@@ -12,46 +14,42 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a new employee
-router.post('/', async (req, res) => {
-  const employee = new Employee({
-    name: req.body.name,
-    surname: req.body.surname,
-    department: req.body.department,
-  });
+// Create a new employee (admin only)
+router.post('/', authenticate, authorize('admin'), async (req, res) => {
+  const { name, surname, department } = req.body;
+
   try {
-    const newEmployee = await employee.save();
-    res.status(201).json(newEmployee);
+    const employee = new Employee({ name, surname, department });
+    await employee.save();
+    res.status(201).json(employee);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
-// Update an employee
-router.put('/:id', async (req, res) => {
+// Update an employee (admin only)
+router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
+  const { name, surname, department } = req.body;
+
   try {
-    const updatedEmployee = await Employee.findByIdAndUpdate(
+    const employee = await Employee.findByIdAndUpdate(
       req.params.id,
-      {
-        name: req.body.name,
-        surname: req.body.surname,
-        department: req.body.department,
-      },
+      { name, surname, department },
       { new: true }
     );
-    res.json(updatedEmployee);
+    res.json(employee);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
-// Delete an employee
-router.delete('/:id', async (req, res) => {
+// Delete an employee (admin only)
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     await Employee.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Employee deleted' });
+    res.json({ msg: 'Employee deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 

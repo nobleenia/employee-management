@@ -1,5 +1,6 @@
 let authToken = null; // To store the JWT token
 let userName = null; // To store the logged-in user's name
+let userRole = null; // To store the logged-in user's role
 
 // Show modal when "Register/Login" button is clicked
 document.getElementById('auth-button').addEventListener('click', () => {
@@ -105,12 +106,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       const data = await res.json();
       authToken = data.token; // Store the token
       localStorage.setItem('authToken', authToken); // Save token for persistence
-      userName = email; // Save email for the welcome message
+      // Decode token to get user role
+      const decodedToken = JSON.parse(atob(authToken.split('.')[1])); // Decode JWT payload
+      userName = decodedToken.name;
+      userRole = decodedToken.role;
       localStorage.setItem('userName', userName);
+      localStorage.setItem('userRole', userRole);
 
       showNotification('Login successful.');
 
       hideAuthModal();
+      setupUIBasedOnRole(userRole);
       document.getElementById('auth-button').style.display = 'none'; // Hide Register/Login button
       document.getElementById('logout-button').style.display = 'block'; // Show Logout button
       document.getElementById('welcome-section').style.display = 'block'; // Show Welcome section
@@ -138,6 +144,17 @@ document.getElementById('logout-button').addEventListener('click', () => {
   showNotification('You have been logged out.');
   location.reload();
 });
+
+// Adjust UI based on role
+function setupUIBasedOnRole(role) {
+  if (role === 'admin') {
+    // Admin: Show all buttons
+    document.querySelectorAll('.admin-only').forEach((el) => (el.style.display = 'block'));
+  } else {
+    // User: Hide admin-only buttons
+    document.querySelectorAll('.admin-only').forEach((el) => (el.style.display = 'none'));
+  }
+}
 
 // Fetch and display employees (with token)
 async function fetchEmployees() {
