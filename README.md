@@ -96,46 +96,57 @@ employee-management/
 - Install **Node.js** (v18+), **npm**, and **Docker**.
 
 ### Clone Repository
-
-```git clone <repository-url>
-cd employee-management```
+```
+git clone <repository-url>
+cd employee-management
+```
 
 ### Install Dependencies
-
-```npm install```
+```
+npm install
+```
 
 ### Environment Variables
-
 Create a .env file in the root directory and configure the following variables:
-```MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/employeeManagement?retryWrites=true&w=majority
+```
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/employeeManagement?retryWrites=true&w=majority
 PORT=3000
-JWT_SECRET=your_super_secret_key```
+JWT_SECRET=your_super_secret_key
+```
 
 ## Running the Application
 
 ### Locally  
-
 1. Start MongoDB:
 
-```mongod```
+```
+mongod
+```
 
 2. Start the server:
 
-```npm start```
+```
+npm start
+```
 
 3. Open the app in the browser:
 
-```http://localhost:3000```
+```
+http://localhost:3000
+```
 
 ### Using Docker  
-
 1. Build and start containers:
 
-```docker-compose up --build -d```
+```
+docker-compose up --build -d
+```
 
 2. Access the app:
 
-```http://localhost:3000```
+```
+http://localhost:3000
+```
 
 ## API Endpoints  
 
