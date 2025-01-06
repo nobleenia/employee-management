@@ -63,7 +63,7 @@ A full-stack **CRUD Employee Management System** with authentication, role-based
 ---
 
 ## Project Structure
-employee-management/
+employee-management/  
 ├── models/ # Mongoose schemas for Users, Employees, Departments
 │  
 ├── routes/ # Express routes for APIs (auth, employees, departments)
@@ -96,41 +96,50 @@ employee-management/
 - Install **Node.js** (v18+), **npm**, and **Docker**.
 
 ### Clone Repository
+
 ```git clone <repository-url>
 cd employee-management```
 
 ### Install Dependencies
+
 ```npm install```
 
 ### Environment Variables
+
 Create a .env file in the root directory and configure the following variables:
 ```MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/employeeManagement?retryWrites=true&w=majority
 PORT=3000
 JWT_SECRET=your_super_secret_key```
 
 ## Running the Application
-### Locally
 
-1. Start MongoDB:  
+### Locally  
+
+1. Start MongoDB:
+
 ```mongod```
 
-2. Start the server:  
+2. Start the server:
+
 ```npm start```
 
-3. Open the app in the browser:  
+3. Open the app in the browser:
+
 ```http://localhost:3000```
 
-### Using Docker
+### Using Docker  
 
 1. Build and start containers:
+
 ```docker-compose up --build -d```
 
 2. Access the app:
+
 ```http://localhost:3000```
 
-## API Endpoints
+## API Endpoints  
 
-### Authentication
+### Authentication  
 - **POST** `/api/auth/register` - Register a new user.
 - **POST** `/api/auth/login` - Log in a user.
 - **PUT** `/api/auth/make-admin/:id` - Assign admin role (admin only).
