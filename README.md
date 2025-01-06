@@ -193,14 +193,15 @@ http://localhost:3000
 
 ### Docker Workflow
 #### Build and Run Containers:
-```bash
+```
 docker-compose up --build -d
+```
 
 #### Push to Docker Hub:
-```bash
+```
 docker build -t <dockerhub-username>/employee-management .
 docker push <dockerhub-username>/employee-management
-
+```
 
 ## Deployment Options
 ### Heroku:
