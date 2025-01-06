@@ -1,4 +1,62 @@
 let authToken = null; // To store the JWT token
+let userName = null; // To store the logged-in user's name
+
+// Show modal when "Register/Login" button is clicked
+document.getElementById('auth-button').addEventListener('click', () => {
+  document.getElementById('auth-modal').style.display = 'block';
+});
+
+// Hide modal on successful login or when closing
+function hideAuthModal() {
+  document.getElementById('auth-modal').style.display = 'none';
+}
+
+// Show Notifications
+function showNotification(message, type = 'info') {
+  const notification = document.getElementById('notification');
+  notification.textContent = message;
+
+  // Apply a background color based on the type of message
+  if (type === 'success') {
+    notification.style.backgroundColor = '#28a745'; // Green for success
+  } else if (type === 'error') {
+    notification.style.backgroundColor = '#dc3545'; // Red for errors
+  } else {
+    notification.style.backgroundColor = '#333'; // Default (info)
+  }
+
+  // Show the notification
+  notification.classList.remove('hidden');
+  notification.classList.add('show');
+
+  // Hide the notification after 3 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+    notification.classList.add('hidden');
+  }, 3000);
+}
+
+// Close modal when clicking outside of the modal content
+window.addEventListener('click', (e) => {
+  const modal = document.getElementById('auth-modal');
+  if (e.target === modal) {
+    modal.style.display = 'none';
+  }
+});
+
+// Switch to Register Form
+document.getElementById('switch-to-register').addEventListener('click', () => {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+  document.getElementById('auth-title').textContent = 'Register';
+});
+
+// Switch to Login Form
+document.getElementById('switch-to-login').addEventListener('click', () => {
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('auth-title').textContent = 'Login';
+});
 
 // Handle registration
 document.getElementById('register-form').addEventListener('submit', async (e) => {
@@ -16,14 +74,16 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     });
 
     if (res.ok) {
-      alert('Registration successful. Please log in.');
+      showNotification('Registration successful. Please log in.');
+      document.getElementById('register-form').reset();
+      document.getElementById('switch-to-login').click(); // Switch to login form
     } else {
       const error = await res.json();
-      alert(`Registration failed: ${error.msg || error.errors[0].msg}`);
+      showNotification(`Registration failed: ${error.msg || error.errors[0].msg}`);
     }
   } catch (err) {
     console.error('Error during registration:', err);
-    alert('Something went wrong during registration.');
+    showNotification('Something went wrong during registration.');
   }
 });
 
@@ -45,33 +105,46 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       const data = await res.json();
       authToken = data.token; // Store the token
       localStorage.setItem('authToken', authToken); // Save token for persistence
-      alert('Login successful.');
-      document.getElementById('logout-button').style.display = 'block'; // Show logout button
-      fetchEmployees(); // Fetch employees after login
+      userName = email; // Save email for the welcome message
+      localStorage.setItem('userName', userName);
+
+      showNotification('Login successful.');
+
+      hideAuthModal();
+      document.getElementById('auth-button').style.display = 'none'; // Hide Register/Login button
+      document.getElementById('logout-button').style.display = 'block'; // Show Logout button
+      document.getElementById('welcome-section').style.display = 'block'; // Show Welcome section
+      document.getElementById('welcome-message').textContent = `Welcome, ${userName}`;
+      document.getElementById('departments').style.display = 'block'; // Show Departments section
+      document.getElementById('employees').style.display = 'block'; // Show Employees section
+
+      fetchEmployees();
+      fetchDepartments();
     } else {
       const error = await res.json();
-      alert(`Login failed: ${error.msg || error.errors[0].msg}`);
+      showNotification(`Login failed: ${error.msg || error.errors[0].msg}`);
     }
   } catch (err) {
     console.error('Error during login:', err);
-    alert('Something went wrong during login.');
+    showNotification('Something went wrong during login.');
   }
 });
 
 // Handle logout
 document.getElementById('logout-button').addEventListener('click', () => {
-  authToken = null; // Clear token in memory
-  localStorage.removeItem('authToken'); // Clear token from localStorage
-  alert('You have been logged out.');
-  location.reload(); // Reload the page to reset UI
+  authToken = null;
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userName');
+  showNotification('You have been logged out.');
+  location.reload();
 });
 
 // Fetch and display employees (with token)
 async function fetchEmployees() {
-  const token = authToken || localStorage.getItem('authToken'); // Get token from memory or storage
+  const token = authToken || localStorage.getItem('authToken');
 
   if (!token) {
-    alert('Please log in to view employees.');
+    showNotification('Please log in to view employees.');
     return;
   }
 
@@ -103,11 +176,11 @@ async function fetchEmployees() {
         employeeTable.appendChild(row);
       });
     } else {
-      alert('Failed to fetch employees. Please ensure you are logged in.');
+      showNotification('Failed to fetch employees. Please ensure you are logged in.');
     }
   } catch (err) {
     console.error('Error fetching employees:', err);
-    alert('Something went wrong while fetching employees.');
+    showNotification('Something went wrong while fetching employees.');
   }
 }
 
@@ -137,7 +210,7 @@ async function fetchDepartments() {
     });
   } catch (err) {
     console.error('Error fetching departments:', err);
-    alert('Something went wrong while fetching departments.');
+    showNotification('Something went wrong while fetching departments.');
   }
 }
 
@@ -146,10 +219,10 @@ document.getElementById('department-form').addEventListener('submit', async (e) 
   e.preventDefault();
 
   const name = document.getElementById('department-name').value;
-  const token = authToken || localStorage.getItem('authToken'); // Get the token from memory or storage
+  const token = authToken || localStorage.getItem('authToken');
 
   if (!token) {
-    alert('Please log in to add a department.');
+    showNotification('Please log in to add a department.');
     return;
   }
 
@@ -158,22 +231,22 @@ document.getElementById('department-form').addEventListener('submit', async (e) 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, // Include token for protected routes
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ name }),
     });
 
     if (res.ok) {
-      document.getElementById('department-name').value = ''; // Clear input field
-      alert('Department added successfully!');
-      fetchDepartments(); // Refresh department list
+      document.getElementById('department-name').value = '';
+      showNotification('Department added successfully!');
+      fetchDepartments();
     } else {
       const error = await res.json();
-      alert(`Failed to add department: ${error.msg || error.errors[0].msg}`);
+      showNotification(`Failed to add department: ${error.msg || error.errors[0].msg}`);
     }
   } catch (err) {
     console.error('Error adding department:', err);
-    alert('Something went wrong while adding the department.');
+    showNotification('Something went wrong while adding the department.');
   }
 });
 
@@ -184,10 +257,10 @@ document.getElementById('employee-form').addEventListener('submit', async (e) =>
   const name = document.getElementById('employee-name').value;
   const surname = document.getElementById('employee-surname').value;
   const department = document.getElementById('employee-department').value;
-  const token = authToken || localStorage.getItem('authToken'); // Get the token from memory or storage
+  const token = authToken || localStorage.getItem('authToken');
 
   if (!token) {
-    alert('Please log in to add an employee.');
+    showNotification('Please log in to add an employee.');
     return;
   }
 
@@ -196,23 +269,23 @@ document.getElementById('employee-form').addEventListener('submit', async (e) =>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, // Include token for protected routes
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ name, surname, department }),
     });
 
     if (res.ok) {
-      document.getElementById('employee-name').value = ''; // Clear input fields
+      document.getElementById('employee-name').value = '';
       document.getElementById('employee-surname').value = '';
-      alert('Employee added successfully!');
-      fetchEmployees(); // Refresh employee list
+      showNotification('Employee added successfully!');
+      fetchEmployees();
     } else {
       const error = await res.json();
-      alert(`Failed to add employee: ${error.msg || error.errors[0].msg}`);
+      showNotification(`Failed to add employee: ${error.msg || error.errors[0].msg}`);
     }
   } catch (err) {
     console.error('Error adding employee:', err);
-    alert('Something went wrong while adding the employee.');
+    showNotification('Something went wrong while adding the employee.');
   }
 });
 
@@ -221,7 +294,7 @@ async function deleteEmployee(id) {
   const token = authToken || localStorage.getItem('authToken');
 
   if (!token) {
-    alert('Please log in to delete an employee.');
+    showNotification('Please log in to delete an employee.');
     return;
   }
 
@@ -236,20 +309,28 @@ async function deleteEmployee(id) {
     if (res.ok) {
       fetchEmployees();
     } else {
-      alert('Failed to delete employee.');
+      showNotification('Failed to delete employee.');
     }
   } catch (err) {
     console.error('Error deleting employee:', err);
-    alert('Something went wrong while deleting an employee.');
+    showNotification('Something went wrong while deleting an employee.');
   }
 }
 
 // Initialize frontend
 document.addEventListener('DOMContentLoaded', () => {
   authToken = localStorage.getItem('authToken'); // Restore token from localStorage
+  userName = localStorage.getItem('userName'); // Restore user name
+
   if (authToken) {
-    document.getElementById('logout-button').style.display = 'block'; // Show logout button
+    document.getElementById('auth-button').style.display = 'none'; // Hide Register/Login button
+    document.getElementById('logout-button').style.display = 'block'; // Show Logout button
+    document.getElementById('welcome-section').style.display = 'block'; // Show Welcome section
+    document.getElementById('welcome-message').textContent = `Welcome, ${userName}`; // Show Welcome message
+    document.getElementById('departments').style.display = 'block'; // Show Departments section
+    document.getElementById('employees').style.display = 'block'; // Show Employees section
+
+    fetchEmployees();
+    fetchDepartments();
   }
-  fetchDepartments();
-  fetchEmployees();
 });
