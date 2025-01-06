@@ -55,4 +55,46 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Search and filter employees
+router.get('/', async (req, res) => {
+  const { department, name } = req.query;
+
+  try {
+    const filter = {};
+    if (department) filter.department = department;
+    if (name) filter.name = { $regex: name, $options: 'i' };
+
+    const employees = await Employee.find(filter);
+    res.json(employees);
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
+});
+
+// Pagination
+router.get('/', async (req, res) => {
+  const { page = 1, limit = 10, department, name } = req.query;
+
+  try {
+    const filter = {};
+    if (department) filter.department = department;
+    if (name) filter.name = { $regex: name, $options: 'i' };
+
+    const employees = await Employee.find(filter)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Employee.countDocuments(filter);
+
+    res.json({
+      employees,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

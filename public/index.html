@@ -12,6 +12,24 @@
   </header>
 
   <main>
+    <section id="auth">
+      <h2>Authentication</h2>
+      <form id="register-form">
+	<h3>Register</h3>
+	<input type="text" id="register-name" placeholder="Name" required>
+	<input type="email" id="register-email" placeholder="Email" required>
+	<input type="password" id="register-password" placeholder="Password" required>
+	<button type="submit">Register</button>
+      </form>
+      <form id="login-form">
+	<h3>Login</h3>
+	<input type="email" id="login-email" placeholder="Email" required>
+	<input type="password" id="login-password" placeholder="Password" required>
+	<button type="submit">Login</button>
+      </form>
+      <button id="logout-button" style="display:none;">Logout</button>
+    </section>
+    
     <section id="departments">
       <h2>Departments</h2>
       <ul id="department-list"></ul>
