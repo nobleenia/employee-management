@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Employee Management API",
+    "version": "1.0.0",
+    "description": "API documentation for the Employee Management System"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token"
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["Auth"],
+        "responses": {
+          "200": { "description": "User registered" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Login user",
+        "tags": ["Auth"],
+        "responses": {
+          "200": { "description": "User logged in" }
+        }
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "summary": "Get all employees",
+        "tags": ["Employees"],
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": { "description": "Returns employee list" }
+        }
+      },
+      "post": {
+        "summary": "Create an employee",
+        "tags": ["Employees"],
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "201": { "description": "Employee created" }
+        }
+      }
+    },
+    "/api/departments": {
+      "get": {
+        "summary": "Get all departments",
+        "tags": ["Departments"],
+        "responses": {
+          "200": { "description": "Returns department list" }
+        }
+      },
+      "post": {
+        "summary": "Create a department",
+        "tags": ["Departments"],
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "201": { "description": "Department created" }
+        }
+      }
+    }
+  }
+}

@@ -48,8 +48,14 @@ router.post(
         { expiresIn: '1h' }
       );
 
-      console.log('Generated Token:', token);
-      res.json({ token });
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 3600000 // 1 hour
+      });
+
+      res.json({ msg: 'Registration successful', user: { name: user.name, role: user.role } });
     } catch (err) {
       console.error('Server Error:', err);
       res.status(500).json({ msg: 'Server Error' });
@@ -81,12 +87,24 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    console.log('Generated Token:', token);
-    res.json({ token });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3600000 // 1 hour
+    });
+
+    res.json({ msg: 'Login successful', user: { name: user.name, role: user.role } });
   } catch (err) {
     console.error('Server Error:', err.message);
     res.status(500).json({ msg: 'Server Error' });
   }
+});
+
+// Logout a user
+router.post('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ msg: 'Logged out successfully' });
 });
 
 // Make a user admin (admin-only)

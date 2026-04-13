@@ -100,19 +100,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'same-origin'
     });
 
     if (res.ok) {
       const data = await res.json();
-      authToken = data.token; // Store the token
-      localStorage.setItem('authToken', authToken); // Save token for persistence
-      // Decode token to get user role
-      const decodedToken = JSON.parse(atob(authToken.split('.')[1])); // Decode JWT payload
-      userName = decodedToken.name;
-      userRole = decodedToken.role;
+      
+      userName = data.user.name;
+      userRole = data.user.role;
       localStorage.setItem('userName', userName);
       localStorage.setItem('userRole', userRole);
-
+      
       showNotification('Login successful.');
 
       hideAuthModal();
@@ -137,10 +135,14 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 });
 
 // Handle logout
-document.getElementById('logout-button').addEventListener('click', () => {
-  authToken = null;
-  localStorage.removeItem('authToken');
+document.getElementById('logout-button').addEventListener('click', async () => {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (err) {
+    console.error('Logout error', err);
+  }
   localStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
   showNotification('You have been logged out.');
   location.reload();
 });
@@ -156,24 +158,16 @@ function setupUIBasedOnRole(role) {
   }
 }
 
-// Fetch and display employees (with token)
+// Fetch and display employees
 async function fetchEmployees() {
-  const token = authToken || localStorage.getItem('authToken');
-
-  if (!token) {
-    showNotification('Please log in to view employees.');
-    return;
-  }
-
   try {
     const res = await fetch('/api/employees', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      credentials: 'same-origin'
     });
 
     if (res.ok) {
-      const employees = await res.json();
+      const pageData = await res.json();
+      const employees = pageData.employees || pageData;
 
       const employeeTable = document.getElementById('employee-table');
       employeeTable.innerHTML = '';
@@ -181,14 +175,32 @@ async function fetchEmployees() {
       employees.forEach((employee) => {
         const row = document.createElement('tr');
 
-        row.innerHTML = `
-          <td>${employee.name}</td>
-          <td>${employee.surname}</td>
-          <td>${employee.department.name}</td>
-          <td>
-            <button onclick="deleteEmployee('${employee._id}')">Delete</button>
-          </td>
-        `;
+        // Escape strings to prevent XSS
+        const safeName = document.createTextNode(employee.name);
+        const safeSurname = document.createTextNode(employee.surname);
+        const safeDept = document.createTextNode(employee.department ? employee.department.name : '');
+
+        const tdName = document.createElement('td');
+        tdName.appendChild(safeName);
+        
+        const tdSurname = document.createElement('td');
+        tdSurname.appendChild(safeSurname);
+        
+        const tdDept = document.createElement('td');
+        tdDept.appendChild(safeDept);
+        
+        const tdActions = document.createElement('td');
+        if (localStorage.getItem('userRole') === 'admin') {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.addEventListener('click', () => deleteEmployee(employee._id));
+          tdActions.appendChild(deleteBtn);
+        }
+
+        row.appendChild(tdName);
+        row.appendChild(tdSurname);
+        row.appendChild(tdDept);
+        row.appendChild(tdActions);
 
         employeeTable.appendChild(row);
       });
@@ -199,6 +211,7 @@ async function fetchEmployees() {
     console.error('Error fetching employees:', err);
     showNotification('Something went wrong while fetching employees.');
   }
+}  }
 }
 
 // Fetch and display departments

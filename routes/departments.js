@@ -1,21 +1,38 @@
 const express = require('express');
 const router = express.Router();
+const { body, validationResult } = require('express-validator');
 const Department = require('../models/Department');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
+// Validation Middleware
+const departmentValidation = [
+  body('name').notEmpty().withMessage('Department name is required').trim().escape(),
+];
+
+const checkValidation = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed');
+    error.statusCode = 400;
+    error.message = errors.array().map((e) => e.msg).join(', ');
+    return next(error);
+  }
+  next();
+};
+
 // Get all departments
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const departments = await Department.find();
     res.json(departments);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 });
 
 // Create a new department
-router.post('/', authenticate, authorize('admin'), async (req, res) => {
+router.post('/', authenticate, authorize('admin'), departmentValidation, checkValidation, async (req, res, next) => {
   const department = new Department({
     name: req.body.name,
   });
@@ -23,12 +40,12 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     const newDepartment = await department.save();
     res.status(201).json(newDepartment);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 });
 
 // Edit a department (admin only)
-router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
+router.put('/:id', authenticate, authorize('admin'), departmentValidation, checkValidation, async (req, res, next) => {
   const { name } = req.body;
 
   try {
@@ -37,9 +54,14 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
       { name },
       { new: true }
     );
+    if (!department) {
+      const error = new Error('Department not found');
+      error.statusCode = 404;
+      return next(error);
+    }
     res.json(department);
   } catch (err) {
-    res.status(500).json({ msg: 'Server Error' });
+    next(err);
   }
 });
 

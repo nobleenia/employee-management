@@ -2,19 +2,19 @@ const jwt = require('jsonwebtoken');
 
 // Middleware to verify JWT
 const authenticate = (req, res, next) => {
-  const token = req.header('Authorization');
+  const token = req.cookies.token || (req.header('Authorization') && req.header('Authorization').replace('Bearer ', ''));
+
   if (!token) {
-    return res.status(401).send('Access Denied: No Token Provided');
+    return res.status(401).json({ msg: 'Access Denied: No Token Provided' });
   }
 
   try {
-    const tokenWithoutBearer = token.split(' ')[1]; // Remove "Bearer" prefix
-    const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET); // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify the token
     req.user = decoded; // Attach decoded user info to request object
     next(); // Allow access to the route
   } catch (err) {
     console.error('Token Verification Error:', err.message);
-    res.status(400).send('Invalid Token');
+    res.status(400).json({ msg: 'Invalid Token' });
   }
 };
 
