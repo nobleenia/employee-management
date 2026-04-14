@@ -8,8 +8,15 @@ const authorize = require('../middleware/role');
 
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const departments = await Department.find({ organizationId: req.user.organizationId });
-    res.json(departments);
+    const departments = await Department.find({ organizationId: req.user.organizationId }).lean();
+    
+    // Calculate employee count per department
+    const departmentsWithCounts = await Promise.all(departments.map(async (dept) => {
+      const count = await Employee.countDocuments({ department: dept._id, organizationId: req.user.organizationId });
+      return { ...dept, employeeCount: count };
+    }));
+    
+    res.json(departmentsWithCounts);
   } catch (err) {
     next(err);
   }

@@ -313,7 +313,7 @@ async function loadDashboardData() {
         
         let deptList = '';
         depths.slice(0,5).forEach(d => {
-             deptList += `<li><div>${d.name}</div> <span class="dept-count">Multiple employees</span></li>`;
+             deptList += `<li><div>${d.name}</div> <span class="dept-count">${d.employeeCount || 0} employees</span></li>`;
         });
         document.getElementById('dashboard-dept-list').innerHTML = deptList;
 
@@ -502,7 +502,7 @@ async function loadDepartmentsData() {
                         <h4>${escapeHtml(dept.name)}</h4>
                         ${actionsHtml}
                     </div>
-                    <span class="dept-count">${escapeHtml(dept.manager ? dept.manager.name : 'Unassigned')}</span>
+                    <span class="dept-count">${dept.employeeCount || 0} Employees</span>
                     <p style="margin-top:12px;color:#64748b;">${escapeHtml(dept.description || '')}</p>
                 `;
                 deptGrid.appendChild(card);
@@ -511,7 +511,7 @@ async function loadDepartmentsData() {
                 tr.innerHTML = `
                     <td><span style="font-weight: 500;">${escapeHtml(dept.name)}</span></td>
                     <td>${escapeHtml(dept.manager ? dept.manager.name : 'Unassigned')}</td>
-                    <td>Multiple</td>
+                    <td>${dept.employeeCount || 0}</td>
                     <td>$0.00</td>
                     <td><span class="badge-status">Active</span></td>
                     <td>${actionsHtml}</td>
