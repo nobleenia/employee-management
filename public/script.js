@@ -135,7 +135,7 @@ async function submitAuth(e, type) {
         });
         
         const data = await res.json();
-        window.cachedTotalEmployees = data.kpis.totalEmployees;
+        
         if (res.ok) {
             localStorage.setItem('user', JSON.stringify(data.user));
             checkAuth();
