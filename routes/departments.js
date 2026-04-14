@@ -78,4 +78,14 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
   }
 });
 
+
+router.get('/:id', authenticate, async (req, res, next) => {
+  try {
+    const department = await Department.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+    if (!department) return res.status(404).json({ msg: 'Department not found' });
+    res.json(department);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
+

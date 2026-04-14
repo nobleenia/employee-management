@@ -620,7 +620,7 @@ async function saveEmployee(e) {
 }
 
 async function deleteEmployee(id) {
-    if(!confirm("Are you sure you want to delete this employee?")) return;
+    
     try {
         const res = await fetch(`/api/employees/${id}`, { method: 'DELETE', credentials: 'same-origin' });
         if(res.ok) {
@@ -726,7 +726,10 @@ document.getElementById('profile-form')?.addEventListener('submit', async (e) =>
             body: JSON.stringify(body)
         });
         if(res.ok) showToast('Profile updated');
-        else showToast('Error updating profile', 'error');
+        else {
+            const err = await res.json();
+            showToast(err.msg || 'Error updating profile', 'error');
+        }
     } catch(e) { showToast('Server Error', 'error'); }
 });
 
@@ -811,7 +814,7 @@ document.getElementById('leave-modal-form')?.addEventListener('submit', async (e
 });
 
 async function updateLeave(id, status) {
-    if(!confirm(`Are you sure you want to mark this as ${status}?`)) return;
+    
     try {
         const res = await fetch(`/api/leave-requests/${id}`, {
             method: 'PUT',
@@ -1018,17 +1021,36 @@ window.toggleEmpStatus = async function(id, currentStatus) {
     } catch(e) { showToast('Server Error', 'error'); }
 };
 
-window.deleteDepartment = async function(id) {
-    if(!confirm("Are you sure you want to delete this department?")) return;
+
+window.deleteDepartment = function(id) {
+    window.pendingDeleteAction = async () => {
+        try {
+            const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+            if(res.ok) {
+                 showToast('Department deleted');
+                 loadDepartmentsData();
+                 loadDashboardData();
+            } else {
+               const err = await res.json();
+               showToast(err.msg || 'Error deleting', 'error');
+            }
+        } catch(err) { showToast('Server Error', 'error');}
+    };
+    document.getElementById('confirm-modal-title').innerText = 'Delete Department';
+    document.getElementById('confirm-modal-msg').innerText = 'Are you sure you want to delete this department?';
+    openModal('confirm-modal');
+};
+
+
+window.editDepartment = async function(id) {
     try {
-        const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'same-origin' });
-        if(res.ok) {
-             showToast('Department deleted');
-             loadDepartmentsData();
-             loadDashboardData();
-        } else {
-           const err = await res.json();
-           showToast(err.msg || 'Error deleting', 'error');
-        }
-    } catch(err) { showToast('Server Error', 'error');}
+        const res = await fetch(`/api/departments/${id}`, { credentials: 'same-origin' });
+        if(!res.ok) throw new Error('Error fetching department');
+        const dept = await res.json();
+        document.getElementById('dept-id').value = dept._id;
+        document.getElementById('dept-name').value = dept.name;
+        document.getElementById('dept-description').value = dept.description || '';
+        document.getElementById('department-modal-title').innerText = 'Edit Department';
+        openModal('department-modal');
+    } catch(e) { showToast('Error fetching department', 'error'); }
 };

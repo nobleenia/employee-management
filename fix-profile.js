@@ -1,20 +1,14 @@
 const fs = require('fs');
-let s = fs.readFileSync('public/script.js', 'utf8');
+let script = fs.readFileSync('public/script.js', 'utf8');
 
-const target1 = `        emergencyContact: document.getElementById('profile-emergency').value`;
-const replace1 = `        emergencyContact: document.getElementById('profile-emergency-name').value + (document.getElementById('profile-emergency-phone').value ? " - " + document.getElementById('profile-emergency-phone').value : "")`;
+// Expose the real error message for profile update
+script = script.replace(
+    /if\(res\.ok\) showToast\('Profile updated'\);\s*else showToast\('Error updating profile', 'error'\);/g,
+    `if(res.ok) showToast('Profile updated');
+        else {
+            const err = await res.json();
+            showToast(err.msg || 'Error updating profile', 'error');
+        }`
+);
 
-const target2 = `document.getElementById('profile-emergency').value = emp.emergencyContact || '';`;
-const replace2 = `const emC = emp.emergencyContact || '';
-        const emParts = emC.split(' - ');
-        document.getElementById('profile-emergency-name').value = emParts[0] || '';
-        document.getElementById('profile-emergency-phone').value = emParts[1] || '';`;
-
-s = s.replace(target1, replace1);
-if(s.includes("document.getElementById('profile-emergency').value")) {
-    s = s.replace(`document.getElementById('profile-emergency').value = emp.emergencyContact || '';`, replace2);
-} else {
-    // maybe it sets it differently
-}
-
-fs.writeFileSync('public/script.js', s);
+fs.writeFileSync('public/script.js', script);

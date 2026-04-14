@@ -80,11 +80,27 @@ router.get('/me', authenticate, async (req, res, next) => {
 router.put('/me', authenticate, async (req, res, next) => {
   try {
     const { phone, address, emergencyContact } = req.body;
-    const employee = await Employee.findOneAndUpdate(
+    let employee = await Employee.findOneAndUpdate(
       { userId: req.user.id, organizationId: req.user.organizationId },
       { phone, address, emergencyContact },
       { new: true }
     ).populate('department', 'name');
+    
+    // If Admin/User does not have an employee profile yet, create one
+    if (!employee && req.user) {
+        employee = new Employee({
+            userId: req.user.id,
+            organizationId: req.user.organizationId,
+            name: req.user.name || 'User',
+            surname: '',
+            email: req.user.email || `${req.user.name}@example.com`,
+            phone: phone || '',
+            address: address || '',
+            emergencyContact: emergencyContact || '',
+            role: req.user.role === 'admin' ? 'Manager' : 'Employee'
+        });
+        await employee.save();
+    }
     if (!employee) return res.status(404).json({ msg: 'No employee profile linked to this user' });
     res.json(employee);
   } catch (err) { next(err); }
@@ -153,4 +169,26 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
+
+router.get('/:id', authenticate, async (req, res, next) => {
+  try {
+    const employee = await Employee.findOne({ _id: req.params.id, organizationId: req.user.organizationId }).populate('department', 'name');
+    if (!employee) return res.status(404).json({ msg: 'Employee not found' });
+    res.json(employee);
+  } catch (err) { next(err); }
+});
+
+router.put('/:id/status', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, organizationId: req.user.organizationId },
+      { status: req.body.status },
+      { new: true }
+    );
+    if (!employee) return res.status(404).json({ msg: 'Employee not found' });
+    res.json(employee);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
+
