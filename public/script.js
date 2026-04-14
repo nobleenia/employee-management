@@ -52,7 +52,27 @@ function showToast(message, type = 'success') {
 
 // Authentication Logic
 async function checkAuth() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteId = urlParams.get('invite');
+    
     const userStr = localStorage.getItem('user');
+    
+    if (inviteId && !userStr) {
+        try {
+            const res = await fetch(`/api/auth/invite/${inviteId}`);
+            if(res.ok) {
+                window.inviteData = await res.json();
+                window.inviteId = inviteId;
+                renderAuthForm('register');
+                showView('auth-view');
+                return;
+            } else {
+                showToast('Invalid or expired invite link', 'error');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } catch(e) { console.error(e); }
+    }
+
     if (userStr) {
         currentUser = JSON.parse(userStr);
         showView('app-view');
@@ -87,16 +107,21 @@ function renderAuthForm(type) {
             </p>
         `;
     } else {
+        const nameDisplay = window.inviteData ? `<p style="margin-bottom: 15px; color: var(--accent-blue);">Joining as: <strong>${window.inviteData.name}</strong></p>` : ``;
+        const emailAttr = window.inviteData && window.inviteData.email ? 'readonly' : 'required';
+        const emailVal = window.inviteData && window.inviteData.email ? window.inviteData.email : '';
+        const emailHint = window.inviteData ? '' : 'placeholder="john@company.com"';
+        
         container.innerHTML = `
             <div class="auth-header">
                 <h2>EmployeeHub</h2>
                 <p class="subtitle">Create your account</p>
+                ${nameDisplay}
             </div>
             <form onsubmit="submitAuth(event, 'register')">
                 <div class="form-group">
-
                     <label>Email</label>
-                    <input type="email" id="auth-email" placeholder="john@company.com" required>
+                    <input type="email" id="auth-email" ${emailHint} value="${emailVal}" ${emailAttr} ${!window.inviteData ? 'required' : ''}>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
@@ -121,6 +146,9 @@ async function submitAuth(e, type) {
     const password = document.getElementById('auth-password').value;
     
     const body = { email, password };
+    if (window.inviteId && type === 'register') {
+        body.inviteId = window.inviteId;
+    }
     if (type === 'register') {
         const confirmPw = document.getElementById('auth-confirm-password').value;
         if(password !== confirmPw) return showToast('Passwords do not match', 'error');
@@ -138,6 +166,11 @@ async function submitAuth(e, type) {
         
         if (res.ok) {
             localStorage.setItem('user', JSON.stringify(data.user));
+            if (window.inviteId) {
+                window.inviteId = null;
+                window.inviteData = null;
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
             checkAuth();
             showToast(type === 'login' ? 'Logged in successfully' : 'Account created');
         } else {

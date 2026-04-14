@@ -3,11 +3,25 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
+const Employee = require('../models/Employee');
 const Organization = require('../models/Organization');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
 const router = express.Router();
+
+// Verify invitation link
+router.get('/invite/:id', async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) return res.status(404).json({ msg: 'Invalid invitation link' });
+    if (employee.userId) return res.status(400).json({ msg: 'Invitation already used' });
+    res.json({ email: employee.email, name: `${employee.name} ${employee.surname}`.trim() });
+  } catch (err) {
+    console.error('Server Error:', err.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
 
 // Register a new user
 router.post(
@@ -22,7 +36,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { email, password, inviteId } = req.body;
     let { name } = req.body;
 
     // Use email as name if not provided
@@ -31,6 +45,45 @@ router.post(
     }
 
     try {
+      if (inviteId) {
+        const employee = await Employee.findById(inviteId);
+        if (!employee) return res.status(400).json({ msg: 'Invalid invitation link' });
+        if (employee.userId) return res.status(400).json({ msg: 'Invitation already used' });
+
+        const userEmail = employee.email || email;
+
+        // Check if user already exists
+        let user = await User.findOne({ email: userEmail });
+        if (user) return res.status(400).json({ msg: 'User already exists' });
+
+        user = new User({
+          name: employee.name,
+          email: userEmail,
+          password,
+          role: 'user', // Invited employees join as regular users
+          organizationId: employee.organizationId
+        });
+        await user.save();
+
+        employee.userId = user._id;
+        await employee.save();
+
+        const token = jwt.sign(
+          { id: user.id, name: user.name, role: user.role, organizationId: employee.organizationId },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        res.cookie('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600000 
+        });
+
+        return res.json({ msg: 'Registration successful', user: { name: user.name, role: user.role, organizationId: user.organizationId } });
+      }
+
       // Check if user already exists
       let user = await User.findOne({ email });
       if (user) {
