@@ -135,6 +135,7 @@ async function submitAuth(e, type) {
         });
         
         const data = await res.json();
+        window.cachedTotalEmployees = data.kpis.totalEmployees;
         if (res.ok) {
             localStorage.setItem('user', JSON.stringify(data.user));
             checkAuth();
@@ -369,8 +370,10 @@ async function loadEmployeesData() {
             let actionsHtml = `<div class="action-btns">`;
             if (currentUser && currentUser.role === 'admin') {
                 actionsHtml += `
-                    <button class="action-btn" title="View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                    <button class="action-btn" title="Copy Invite Link" onclick="navigator.clipboard.writeText(window.location.origin + '/app.html?invite=' + '${emp._id}'); showToast('Invitation link copied');"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>
+                    <button class="action-btn" title="Toggle Status" onclick="toggleEmpStatus('${emp._id}', '${emp.status}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
                     <button class="action-btn" title="Edit Employee" onclick="editEmployee('${emp._id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button class="action-btn" title="Delete Employee" onclick="deleteEmployee('${emp._id}')" style="color: #ef4444;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
                 `;
             } else {
                  actionsHtml += `<button class="action-btn" title="View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>`;
@@ -449,7 +452,7 @@ async function loadDepartmentsData() {
                 <div class="kpi-header">
                     <div>
                         <div class="kpi-title">Total Employees</div>
-                        <div class="kpi-value">38</div>
+                        <div class="kpi-value">${window.cachedTotalEmployees || 0}</div>
                     </div>
                     <div class="kpi-icon green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg></div>
                 </div>
@@ -458,7 +461,7 @@ async function loadDepartmentsData() {
                 <div class="kpi-header">
                     <div>
                         <div class="kpi-title">Avg Team Size</div>
-                        <div class="kpi-value">6</div>
+                        <div class="kpi-value">${data.length ? Math.round((window.cachedTotalEmployees || 0) / data.length) : 0}</div>
                     </div>
                     <div class="kpi-icon blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg></div>
                 </div>
@@ -483,7 +486,9 @@ async function loadDepartmentsData() {
         data.forEach(dept => {
             let actionsHtml = `<div class="action-btns">`;
             if (currentUser && currentUser.role === 'admin') {
+                actionsHtml += `<button class="action-btn" title="Show/Hide" onclick="showToast('View Department action triggered')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>`;
                 actionsHtml += `<button class="action-btn" title="Edit" onclick="editDepartment('${dept._id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
+                actionsHtml += `<button class="action-btn" title="Delete" onclick="deleteDepartment('${dept._id}')" style="color: #ef4444;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
             } else {
                 actionsHtml += `<button class="action-btn" title="View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>`;
             }
@@ -674,7 +679,12 @@ async function loadProfileData() {
         
         document.getElementById('profile-phone').value = data.phone || '';
         document.getElementById('profile-address').value = data.address || '';
-        document.getElementById('profile-emergency').value = data.emergencyContact || '';
+                const emC = data.emergencyContact || '';
+        const emParts = emC.split(' - ');
+        const elName = document.getElementById('profile-emergency-name');
+        const elPhone = document.getElementById('profile-emergency-phone');
+        if (elName) elName.value = emParts[0] || '';
+        if (elPhone) elPhone.value = emParts[1] || '';
         
         document.getElementById('profile-dept-info').innerHTML = 
             `Your Role: <strong>${data.role || 'Unassigned'}</strong> | Department: ${data.department ? data.department.name : 'None'}`;
@@ -705,7 +715,7 @@ document.getElementById('profile-form')?.addEventListener('submit', async (e) =>
     const body = {
         phone: document.getElementById('profile-phone').value,
         address: document.getElementById('profile-address').value,
-        emergencyContact: document.getElementById('profile-emergency').value
+        emergencyContact: document.getElementById('profile-emergency-name').value + (document.getElementById('profile-emergency-phone').value ? " - " + document.getElementById('profile-emergency-phone').value : "")
     };
     
     try {
@@ -989,3 +999,36 @@ async function loadOrgChart() {
         container.innerHTML = '<p>Error loading or you lack admin permissions.</p>';
     }
 }
+
+window.toggleEmpStatus = async function(id, currentStatus) {
+    const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+    try {
+        const res = await fetch(`/api/employees/${id}/status`, { 
+            method: 'PUT', 
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({status: newStatus}),
+            credentials: 'same-origin' 
+        });
+        if(res.ok) {
+            showToast('Employee status updated');
+            loadEmployeesData(); 
+        } else {
+            showToast('Failed to update status', 'error');
+        }
+    } catch(e) { showToast('Server Error', 'error'); }
+};
+
+window.deleteDepartment = async function(id) {
+    if(!confirm("Are you sure you want to delete this department?")) return;
+    try {
+        const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+        if(res.ok) {
+             showToast('Department deleted');
+             loadDepartmentsData();
+             loadDashboardData();
+        } else {
+           const err = await res.json();
+           showToast(err.msg || 'Error deleting', 'error');
+        }
+    } catch(err) { showToast('Server Error', 'error');}
+};
