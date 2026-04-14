@@ -728,7 +728,7 @@ document.getElementById('profile-form')?.addEventListener('submit', async (e) =>
         if(res.ok) showToast('Profile updated');
         else {
             const err = await res.json();
-            showToast(err.msg || 'Error updating profile', 'error');
+            showToast(err?.error?.message || err.msg || 'Error updating profile', 'error');
         }
     } catch(e) { showToast('Server Error', 'error'); }
 });

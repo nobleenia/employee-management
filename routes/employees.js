@@ -92,7 +92,7 @@ router.put('/me', authenticate, async (req, res, next) => {
             userId: req.user.id,
             organizationId: req.user.organizationId,
             name: req.user.name || 'User',
-            surname: '',
+            surname: 'Unspecified',
             email: req.user.email || `${req.user.name}@example.com`,
             phone: phone || '',
             address: address || '',
