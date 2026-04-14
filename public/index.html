@@ -1,78 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Management</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmployeeHub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header>
-    <h1>Employee Management System</h1>
-    <button id="auth-button" style="position: absolute; top: 10px; right: 10px;">Register/Login</button>
-    <button id="logout-button" style="display:none; position: absolute; top: 10px; right: 10px;">Logout</button>
-  </header>
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
 
-  <div id="notification" class="hidden"></div>
-
-  <main>
-    <section id="welcome-section" style="display:none;">
-      <h2 id="welcome-message"></h2>
-    </section>
-    
-    <section id="departments">
-      <h2>Departments</h2>
-      <ul id="department-list"></ul>
-      <form id="department-form">
-        <input type="text" id="department-name" placeholder="New Department Name" required>
-        <button type="submit">Add Department</button>
-      </form>
-    </section>
-
-    <section id="employees">
-      <h2>Employees</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Surname</th>
-            <th>Department</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="employee-table"></tbody>
-      </table>
-      <form id="employee-form">
-        <input type="text" id="employee-name" placeholder="First Name" required>
-        <input type="text" id="employee-surname" placeholder="Last Name" required>
-        <select id="employee-department"></select>
-        <button type="submit">Add Employee</button>
-      </form>
-    </section>
-  </main>
-
-  <!-- Modal for Authentication -->
-  <div id="auth-modal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <h2 id="auth-title">Login</h2>
-      <form id="register-form" style="display:none;">
-        <h3>Register</h3>
-        <input type="text" id="register-name" placeholder="Name" required>
-        <input type="email" id="register-email" placeholder="Email" required>
-        <input type="password" id="register-password" placeholder="Password" required>
-        <button type="submit">Register</button>
-        <button type="button" id="switch-to-login">Switch to Login</button>
-      </form>
-      <form id="login-form">
-        <h3>Login</h3>
-        <input type="email" id="login-email" placeholder="Email" required>
-        <input type="password" id="login-password" placeholder="Password" required>
-        <button type="submit">Login</button>
-        <button type="button" id="switch-to-register">Switch to Register</button>
-      </form>
+    <!-- AUTH VIEW -->
+    <div id="auth-view" class="view">
+        <div class="auth-card">
+            <div class="auth-card-body" id="auth-form-container">
+                <!-- Injected by script.js -->
+            </div>
+        </div>
+        <div class="help-btn">?</div>
     </div>
-  </div>
 
-  <script src="script.js"></script>
+    <!-- MAIN APP SHELL -->
+    <div id="app-view" class="view" style="display: none;">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-text">EmployeeHub</span>
+                <button class="sidebar-close" id="sidebar-close" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" data-target="dashboard" class="nav-item active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="#" data-target="employees" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span class="nav-text">Employees</span>
+                </a>
+                <a href="#" data-target="departments" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <span class="nav-text">Departments</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-wrapper">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <div class="search-box">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <div class="user-info">
+                            <span class="user-name" id="current-user-name">User</span>
+                            <span class="user-role" id="current-user-role">Role</span>
+                        </div>
+                        <div class="user-avatar" id="current-user-initial">U</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content Area -->
+            <div class="content-scrollable">
+                
+                <!-- Dashboard Page -->
+                <div id="page-dashboard" class="page-content active">
+                    <div class="page-header">
+                        <h2>Dashboard</h2>
+                        <p class="subtitle">Welcome back! Here's what's happening today.</p>
+                    </div>
+
+                    <!-- KPI Cards Row -->
+                    <div class="kpi-grid" id="dashboard-kpis">
+                        <!-- Generated via JS -->
+                    </div>
+
+                    <!-- Dashboard Main Grid -->
+                    <div class="dashboard-grid">
+                        <div class="card recent-activity">
+                            <h3>Recent Activity</h3>
+                            <div class="activity-list" id="activity-feed">
+                                <!-- Generated via JS -->
+                            </div>
+                        </div>
+
+                        <div class="dashboard-right-column">
+                            <div class="card quick-actions-card">
+                                <h3>Quick Actions</h3>
+                                <div class="quick-actions-grid">
+                                    <button class="quick-action-btn" onclick="openEmployeeModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>Add Employee</button>
+                                    <button class="quick-action-btn" onclick="openDepartmentModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>New Department</button>
+                                    <button class="quick-action-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>View Reports</button>
+                                    <button class="quick-action-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>Analytics</button>
+                                </div>
+                            </div>
+                            <div class="card department-overview-card">
+                                <h3>Department Overview</h3>
+                                <ul class="department-overview-list" id="dashboard-dept-list">
+                                    <!-- Generated via JS -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employees Page -->
+                <div id="page-employees" class="page-content" style="display: none;">
+                    <div class="page-header flex-between">
+                        <div>
+                            <h2>Employees</h2>
+                            <p class="subtitle">Manage your team members and their information</p>
+                        </div>
+                        <button class="btn btn-dark" id="btn-add-employee" onclick="openEmployeeModal()">+ Add Employee</button>
+                    </div>
+
+                    <div class="card table-card">
+                        <div class="table-toolbar">
+                            <div class="search-box">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="employee-search" placeholder="Search...">
+                            </div>
+                            <select class="filter-select" id="employee-dept-filter">
+                                <option value="">All Departments</option>
+                            </select>
+                            <div class="view-toggles">
+                                <button class="view-btn active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
+                                <button class="view-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></button>
+                            </div>
+                        </div>
+                        <p class="subtitle mt-0" style="margin: 0 24px 16px;" id="employee-count-label">Showing 0 employees</p>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Department</th>
+                                        <th>Role</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employee-table-body">
+                                    <!-- Generated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Pagination (mock) -->
+                        <div class="pagination" id="employee-pagination"></div>
+                    </div>
+                </div>
+
+                <!-- Departments Page -->
+                <div id="page-departments" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Departments</h2>
+                        <p class="subtitle">Manage your organization's departments and teams</p>
+                    </div>
+                    
+                    <div class="kpi-grid" id="departments-kpis">
+                        <!-- Generated via JS -->
+                    </div>
+
+                    <div class="dept-grid" id="departments-grid">
+                        <!-- Generated via JS -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Employee Modal -->
+    <div id="employee-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content-box">
+            <h3 id="employee-modal-title">Add Employee</h3>
+            <form id="employee-modal-form">
+                <input type="hidden" id="emp-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="emp-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="emp-surname" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="emp-email">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="emp-phone">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <select id="emp-department" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <input type="text" id="emp-role">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="emp-status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="on-leave">On Leave</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('employee-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-dark">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Department Modal -->
+    <div id="department-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content-box">
+            <h3 id="department-modal-title">New Department</h3>
+            <form id="department-modal-form">
+                <input type="hidden" id="dept-id">
+                <div class="form-group">
+                    <label>Department Name</label>
+                    <input type="text" id="dept-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="dept-description" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('department-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-dark">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>

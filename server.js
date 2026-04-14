@@ -27,10 +27,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const departmentRoutes = require('./routes/departments');
 const employeeRoutes = require('./routes/employees');
 const authRoutes = require('./routes/auth');
+const dashboardRoutes = require('./routes/dashboard');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/employees', authenticate, employeeRoutes);
+app.use('/api/dashboard', authenticate, dashboardRoutes);
 
 // Global Error Handler
 const errorHandler = require('./middleware/errorHandler');

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Employee = require('../models/Employee');
+const Department = require('../models/Department');
+const ActivityLog = require('../models/ActivityLog');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
@@ -10,6 +12,10 @@ const employeeValidation = [
   body('name').notEmpty().withMessage('Name is required').trim().escape(),
   body('surname').notEmpty().withMessage('Surname is required').trim().escape(),
   body('department').isMongoId().withMessage('Valid department ID is required'),
+  body('email').optional().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('phone').optional().trim().escape(),
+  body('role').optional().trim().escape(),
+  body('status').optional().isIn(['active', 'inactive', 'on-leave']).withMessage('Invalid status'),
 ];
 
 const checkValidation = (req, res, next) => {
@@ -54,11 +60,25 @@ router.get('/', async (req, res, next) => {
 
 // Create a new employee (admin only)
 router.post('/', authenticate, authorize('admin'), employeeValidation, checkValidation, async (req, res, next) => {
-  const { name, surname, department } = req.body;
+  const { name, surname, department, email, phone, role, status } = req.body;
 
   try {
-    const employee = new Employee({ name, surname, department });
+    const employee = new Employee({ name, surname, department, email, phone, role, status });
     await employee.save();
+
+    // Fetch department for log detail
+    let logDesc = `${name} ${surname} joined`;
+    try {
+      const deptDetails = await Department.findById(department);
+      if (deptDetails) logDesc += ` ${deptDetails.name} team`;
+    } catch(e) {}
+
+    await ActivityLog.create({
+      action: 'Employee Added',
+      description: logDesc,
+      user: req.user?.name || 'Admin User'
+    });
+
     res.status(201).json(employee);
   } catch (err) {
     next(err);
@@ -67,12 +87,12 @@ router.post('/', authenticate, authorize('admin'), employeeValidation, checkVali
 
 // Update an employee (admin only)
 router.put('/:id', authenticate, authorize('admin'), employeeValidation, checkValidation, async (req, res, next) => {
-  const { name, surname, department } = req.body;
+  const { name, surname, department, email, phone, role, status } = req.body;
 
   try {
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
-      { name, surname, department },
+      { name, surname, department, email, phone, role, status },
       { new: true }
     );
     if (!employee) {
@@ -80,6 +100,13 @@ router.put('/:id', authenticate, authorize('admin'), employeeValidation, checkVa
       error.statusCode = 404;
       return next(error);
     }
+
+    await ActivityLog.create({
+      action: 'Employee Updated',
+      description: `${employee.name} ${employee.surname} updated`,
+      user: req.user?.name || 'Admin User'
+    });
+
     res.json(employee);
   } catch (err) {
     next(err);
@@ -95,6 +122,13 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
       error.statusCode = 404;
       return next(error);
     }
+
+    await ActivityLog.create({
+      action: 'Employee Deleted',
+      description: `${employee.name} ${employee.surname} deleted`,
+      user: req.user?.name || 'Admin User'
+    });
+
     res.json({ msg: 'Employee deleted successfully' });
   } catch (err) {
     next(err);
