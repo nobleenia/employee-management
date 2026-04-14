@@ -27,12 +27,21 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const departmentRoutes = require('./routes/departments');
 const employeeRoutes = require('./routes/employees');
 const authRoutes = require('./routes/auth');
+const documentRoutes = require('./routes/documents');
+const adminRoutes = require('./routes/admin');
+
 const dashboardRoutes = require('./routes/dashboard');
+const leaveRequestRoutes = require('./routes/leave-requests');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/admin', adminRoutes);
+
+
 app.use('/api/departments', departmentRoutes);
 app.use('/api/employees', authenticate, employeeRoutes);
 app.use('/api/dashboard', authenticate, dashboardRoutes);
+app.use('/api/leave-requests', authenticate, leaveRequestRoutes);
 
 // Global Error Handler
 const errorHandler = require('./middleware/errorHandler');
@@ -40,7 +49,7 @@ app.use(errorHandler);
 
 // Default Route
 app.get('/', (req, res) => {
-  res.send('Employee Management System is running.');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Connect to MongoDB

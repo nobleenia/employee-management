@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 
-const activityLogSchema = new mongoose.Schema({
-  action: { type: String, required: true }, // e.g., 'Employee Added', 'Department Updated'
-  description: { type: String, required: true }, // e.g., 'Sarah Johnson promoted to Senior Software Engineer'
-  user: { type: String, required: true }, // The name of the user who performed the action (e.g., 'Admin User')
-}, { timestamps: true });
+const activitySchema = new mongoose.Schema({
+    action: { type: String, required: true },
+    description: { type: String },
+    user: { type: String, default: 'System' },
+    organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
+    createdAt: { type: Date, default: Date.now }
+});
 
-module.exports = mongoose.model('ActivityLog', activityLogSchema);
+module.exports = mongoose.model('ActivityLog', activitySchema);

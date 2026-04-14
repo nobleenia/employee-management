@@ -1,84 +1,78 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
 const Department = require('../models/Department');
+const Employee = require('../models/Employee');
 const ActivityLog = require('../models/ActivityLog');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
-// Validation Middleware
-const departmentValidation = [
-  body('name').notEmpty().withMessage('Department name is required').trim().escape(),
-  body('description').optional().trim().escape(),
-];
-
-const checkValidation = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const error = new Error('Validation failed');
-    error.statusCode = 400;
-    error.message = errors.array().map((e) => e.msg).join(', ');
-    return next(error);
-  }
-  next();
-};
-
-// Get all departments
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
-    const departments = await Department.find();
+    const departments = await Department.find({ organizationId: req.user.organizationId });
     res.json(departments);
   } catch (err) {
     next(err);
   }
 });
 
-// Create a new department
-router.post('/', authenticate, authorize('admin'), departmentValidation, checkValidation, async (req, res, next) => {
-  const department = new Department({
-    name: req.body.name,
-    description: req.body.description,
-  });
+router.post('/', authenticate, authorize('admin'), async (req, res, next) => {
+  const { name, description } = req.body;
   try {
-    const newDepartment = await department.save();
-    
-    // Log activity
+    const department = new Department({ name, description, organizationId: req.user.organizationId });
+    await department.save();
+
     await ActivityLog.create({
       action: 'Department Added',
-      description: `New department "${newDepartment.name}" created`,
-      user: req.user.name || 'Admin User'
+      description: `New department: ${name}`,
+      user: req.user?.name || 'Admin',
+      organizationId: req.user.organizationId
     });
 
-    res.status(201).json(newDepartment);
-  } catch (err) {
-    next(err);
-  }
+    res.status(201).json(department);
+  } catch (err) { next(err); }
 });
 
-// Edit a department (admin only)
-router.put('/:id', authenticate, authorize('admin'), departmentValidation, checkValidation, async (req, res, next) => {
+router.put('/:id', authenticate, authorize('admin'), async (req, res, next) => {
   const { name, description } = req.body;
-
   try {
-    const department = await Department.findByIdAndUpdate(
-      req.params.id,
+    const department = await Department.findOneAndUpdate(
+      { _id: req.params.id, organizationId: req.user.organizationId },
       { name, description },
       { new: true }
     );
-    if (!department) {
-      const error = new Error('Department not found');
-      error.statusCode = 404;
-      return next(error);
-    }
+    if (!department) return next(new Error('Department not found'));
 
-    // Log activity
     await ActivityLog.create({
       action: 'Department Updated',
-      description: `Department "${department.name}" updated`,
-      user: req.user.name || 'Admin User'
+      description: `${department.name} details changed`,
+      user: req.user?.name || 'Admin User',
+      organizationId: req.user.organizationId
     });
 
     res.json(department);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    // Re-assign employees before deleting? Or block?
+    // Simplified for now: just delete.
+    const department = await Department.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
+    if (!department) return next(new Error('Department not found'));
+
+    await Employee.updateMany(
+      { department: req.params.id, organizationId: req.user.organizationId },
+      { department: null }
+    );
+
+    await ActivityLog.create({
+      action: 'Department Deleted',
+      description: `${department.name} was removed`,
+      user: req.user?.name || 'Admin User',
+      organizationId: req.user.organizationId
+    });
+
+    res.json({ msg: 'Department deleted. Employees reassigned.' });
   } catch (err) {
     next(err);
   }

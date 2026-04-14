@@ -35,6 +35,10 @@ function switchPage(page) {
     if (page === 'dashboard') loadDashboardData();
     if (page === 'employees') loadEmployeesData();
     if (page === 'departments') loadDepartmentsData();
+    if (page === 'profile') loadProfileData();
+    if (page === 'leaves') loadLeavesData();
+    if (page === 'org-chart') loadOrgChart();
+    if (page === 'documents') initDocumentsPage();
 }
 
 function showToast(message, type = 'success') {
@@ -90,10 +94,7 @@ function renderAuthForm(type) {
             </div>
             <form onsubmit="submitAuth(event, 'register')">
                 <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="auth-name" placeholder="John Doe" required>
-                </div>
-                <div class="form-group">
+
                     <label>Email</label>
                     <input type="email" id="auth-email" placeholder="john@company.com" required>
                 </div>
@@ -123,9 +124,6 @@ async function submitAuth(e, type) {
     if (type === 'register') {
         const confirmPw = document.getElementById('auth-confirm-password').value;
         if(password !== confirmPw) return showToast('Passwords do not match', 'error');
-        body.name = document.getElementById('auth-name').value;
-        const nameParts = body.name.split(' ');
-        if(nameParts.length < 2) return showToast('Please enter both name and surname', 'error');
     }
 
     try {
@@ -189,8 +187,53 @@ function attachGlobalListeners() {
     });
 
     // Modals
-    document.getElementById('employee-modal-form').addEventListener('submit', saveEmployee);
+    
+    document.getElementById('btn-add-employee').addEventListener('click', window.openEmployeeModal || openEmployeeModalOrig);
+    document.getElementById('btn-add-department').addEventListener('click', openDepartmentModal);
+    
+document.getElementById('employee-modal-form').addEventListener('submit', saveEmployee);
     document.getElementById('department-modal-form').addEventListener('submit', saveDepartment);
+    
+    // View Toggles and Filters
+    document.getElementById('emp-view-list').addEventListener('click', () => {
+        empViewMode = 'list';
+        document.getElementById('emp-view-list').classList.add('active');
+        document.getElementById('emp-view-grid').classList.remove('active');
+        loadEmployeesData();
+    });
+    document.getElementById('emp-view-grid').addEventListener('click', () => {
+        empViewMode = 'grid';
+        document.getElementById('emp-view-grid').classList.add('active');
+        document.getElementById('emp-view-list').classList.remove('active');
+        loadEmployeesData();
+    });
+    
+    document.getElementById('dept-view-list').addEventListener('click', () => {
+        deptViewMode = 'list';
+        document.getElementById('dept-view-list').classList.add('active');
+        document.getElementById('dept-view-grid').classList.remove('active');
+        loadDepartmentsData();
+    });
+    document.getElementById('dept-view-grid').addEventListener('click', () => {
+        deptViewMode = 'grid';
+        document.getElementById('dept-view-grid').classList.add('active');
+        document.getElementById('dept-view-list').classList.remove('active');
+        loadDepartmentsData();
+    });
+
+    document.getElementById('employee-dept-filter').addEventListener('change', (e) => {
+        currentEmpFilter = e.target.value;
+        loadEmployeesData();
+    });
+
+    let searchTimeout;
+    document.getElementById('employee-search').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentEmpSearch = e.target.value;
+            loadEmployeesData();
+        }, 300);
+    });
 }
 
 // Data Fetchers
@@ -278,22 +321,50 @@ async function loadDashboardData() {
     }
 }
 
+let currentEmpSearch = '';
+let currentEmpFilter = '';
+let empViewMode = 'list';
+
 async function loadEmployeesData() {
     try {
-        const res = await fetch('/api/employees', { credentials: 'same-origin' });
+        const filterSelect = document.getElementById('employee-dept-filter');
+        if (filterSelect.options.length <= 1) {
+            const dr = await fetch('/api/departments', { credentials: 'same-origin' });
+            if (dr.ok) {
+                const depts = await dr.json();
+                filterSelect.innerHTML = '<option value="">All Departments</option>';
+                depts.forEach(d => {
+                    filterSelect.innerHTML += `<option value="${d._id}">${d.name}</option>`;
+                });
+            }
+        }
+
+        let url = '/api/employees?limit=100';
+        if (currentEmpSearch) url += `&name=${encodeURIComponent(currentEmpSearch)}`;
+        if (currentEmpFilter) url += `&department=${encodeURIComponent(currentEmpFilter)}`;
+
+        const res = await fetch(url, { credentials: 'same-origin' });
         if(!res.ok) throw new Error('Failed');
         const data = await res.json();
         
         const empTable = document.getElementById('employee-table-body');
-        document.getElementById('employee-count-label').innerHTML = `Showing ${data.employees.length} of ${data.total} employees`;
+        const empGrid = document.getElementById('employee-grid-container');
+        document.getElementById('employee-count-label').innerHTML = `Showing ${data.employees.length} employees`;
+        
         empTable.innerHTML = '';
+        empGrid.innerHTML = '';
+
+        if (empViewMode === 'list') {
+            document.getElementById('employee-table-container').style.display = 'block';
+            empGrid.style.display = 'none';
+        } else {
+            document.getElementById('employee-table-container').style.display = 'none';
+            empGrid.style.display = 'grid';
+        }
         
         data.employees.forEach(emp => {
             const deptName = emp.department ? emp.department.name : 'Unassigned';
             const initials = emp.name[0].toUpperCase() + emp.surname[0].toUpperCase();
-            
-            // Build the row elements dynamically
-            const tr = document.createElement('tr');
             
             let actionsHtml = `<div class="action-btns">`;
             if (currentUser && currentUser.role === 'admin') {
@@ -306,27 +377,56 @@ async function loadEmployeesData() {
             }
              actionsHtml += `</div>`;
 
-            tr.innerHTML = `
-                <td class="emp-cell">
-                    <div class="emp-avatar">${initials}</div>
-                    <div class="emp-details">
-                        <span class="emp-name">${escapeHtml(emp.name)} ${escapeHtml(emp.surname)}</span>
-                        <span class="emp-phone">${escapeHtml(emp.phone || '+1 (555) 123-4567')}</span>
+            if (empViewMode === 'list') {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="emp-cell">
+                        <div class="emp-avatar">${initials}</div>
+                        <div class="emp-details">
+                            <span class="emp-name">${escapeHtml(emp.name)} ${escapeHtml(emp.surname)}</span>
+                            <span class="emp-phone">${escapeHtml(emp.phone || '+1 (555) 123-4567')}</span>
+                        </div>
+                    </td>
+                    <td><span class="badge-dept">${escapeHtml(deptName)}</span></td>
+                    <td>${escapeHtml(emp.role || 'Unassigned')}</td>
+                    <td style="color:#64748b;">${escapeHtml(emp.email || `${escapeHtml(emp.name.toLowerCase())}.${escapeHtml(emp.surname.toLowerCase())}@company.com`)}</td>
+                    <td><span class="badge-status">${escapeHtml(emp.status || 'active')}</span></td>
+                    <td>${actionsHtml}</td>
+                `;
+                empTable.appendChild(tr);
+            } else {
+                const card = document.createElement('div');
+                card.className = 'card dept-card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div class="emp-cell" style="margin-bottom: 0;">
+                            <div class="emp-avatar">${initials}</div>
+                            <div class="emp-details">
+                                <span class="emp-name">${escapeHtml(emp.name)} ${escapeHtml(emp.surname)}</span>
+                                <span class="emp-phone" style="color:#64748b; font-size:12px;">${escapeHtml(emp.role || 'Unassigned')}</span>
+                            </div>
+                        </div>
+                        ${actionsHtml}
                     </div>
-                </td>
-                <td><span class="badge-dept">${escapeHtml(deptName)}</span></td>
-                <td>${escapeHtml(emp.role || 'Unassigned')}</td>
-                <td style="color:#64748b;">${escapeHtml(emp.email || `${escapeHtml(emp.name.toLowerCase())}.${escapeHtml(emp.surname.toLowerCase())}@company.com`)}</td>
-                <td><span class="badge-status">${escapeHtml(emp.status || 'active')}</span></td>
-                <td>${actionsHtml}</td>
-            `;
-            empTable.appendChild(tr);
+                    <div style="font-size:13px; color:#64748b; margin-bottom: 12px;">
+                        <div>${escapeHtml(emp.email || `${escapeHtml(emp.name.toLowerCase())}.${escapeHtml(emp.surname.toLowerCase())}@company.com`)}</div>
+                        <div style="margin-top: 4px;">${escapeHtml(emp.phone || '+1 (555) 123-4567')}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: auto;">
+                        <span class="badge-dept">${escapeHtml(deptName)}</span>
+                        <span class="badge-status">${escapeHtml(emp.status || 'active')}</span>
+                    </div>
+                `;
+                empGrid.appendChild(card);
+            }
         });
 
     } catch(e) {
         showToast('Error loading employees', 'error');
     }
 }
+
+let deptViewMode = 'grid';
 
 async function loadDepartmentsData() {
      try {
@@ -365,16 +465,54 @@ async function loadDepartmentsData() {
             </div>
         `;
 
-        document.getElementById('departments-grid').innerHTML = '';
+        const deptGrid = document.getElementById('departments-grid');
+        const deptTable = document.getElementById('departments-table-body');
+        const deptTableContainer = document.getElementById('departments-table-container');
+        
+        deptGrid.innerHTML = '';
+        deptTable.innerHTML = '';
+        
+        if (deptViewMode === 'grid') {
+            deptGrid.style.display = 'grid';
+            deptTableContainer.style.display = 'none';
+        } else {
+            deptGrid.style.display = 'none';
+            deptTableContainer.style.display = 'block';
+        }
+
         data.forEach(dept => {
-            const card = document.createElement('div');
-            card.className = 'card dept-card';
-            card.innerHTML = `
-                <h4>${escapeHtml(dept.name)}</h4>
-                <span class="dept-count">Multiple Employees</span>
-                <p>${escapeHtml(dept.description || 'Software development and infrastructure')}</p>
-            `;
-            document.getElementById('departments-grid').appendChild(card);
+            let actionsHtml = `<div class="action-btns">`;
+            if (currentUser && currentUser.role === 'admin') {
+                actionsHtml += `<button class="action-btn" title="Edit" onclick="editDepartment('${dept._id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>`;
+            } else {
+                actionsHtml += `<button class="action-btn" title="View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>`;
+            }
+            actionsHtml += `</div>`;
+            
+            if (deptViewMode === 'grid') {
+                const card = document.createElement('div');
+                card.className = 'card dept-card';
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                        <h4>${escapeHtml(dept.name)}</h4>
+                        ${actionsHtml}
+                    </div>
+                    <span class="dept-count">${escapeHtml(dept.manager ? dept.manager.name : 'Unassigned')}</span>
+                    <p style="margin-top:12px;color:#64748b;">${escapeHtml(dept.description || '')}</p>
+                `;
+                deptGrid.appendChild(card);
+            } else {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span style="font-weight: 500;">${escapeHtml(dept.name)}</span></td>
+                    <td>${escapeHtml(dept.manager ? dept.manager.name : 'Unassigned')}</td>
+                    <td>Multiple</td>
+                    <td>$0.00</td>
+                    <td><span class="badge-status">Active</span></td>
+                    <td>${actionsHtml}</td>
+                `;
+                deptTable.appendChild(tr);
+            }
         });
 
     } catch(e) {
@@ -416,7 +554,7 @@ function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
 
-function openEmployeeModal() {
+async function openEmployeeModalOrig() {
     if(!currentUser || currentUser.role !== 'admin') return showToast('Admin access required', 'error');
     populateDepartmentSelect();
     document.getElementById('employee-modal-form').reset();
@@ -441,6 +579,7 @@ async function saveEmployee(e) {
         email: document.getElementById('emp-email').value,
         phone: document.getElementById('emp-phone').value,
         department: document.getElementById('emp-department').value,
+        managerId: document.getElementById('emp-manager').value || null,
         role: document.getElementById('emp-role').value,
         status: document.getElementById('emp-status').value
     };
@@ -512,4 +651,341 @@ async function saveDepartment(e) {
             if(currentView==='departments') loadDepartmentsData();
         } else { showToast('Error occurred', 'error'); }
     } catch(err) { showToast('Server Error', 'error'); }
+}
+
+
+// --- PROFILE ---
+async function loadProfileData() {
+    try {
+        const res = await fetch('/api/employees/me', { credentials: 'same-origin' });
+        if(!res.ok) {
+            if(res.status === 404) {
+               if (currentUser && currentUser.role === 'admin') {
+                   document.getElementById('profile-dept-info').innerHTML = 
+                       `Your Role: <strong>Administrator</strong> | System Owner`;
+                   return;
+               }
+               document.getElementById('profile-dept-info').innerHTML = '<p style="color:red;">Error: Your profile has not been assigned to a valid employee record. Please contact your admin.</p>';
+               return;
+            }
+            throw new Error('Failed');
+        }
+        const data = await res.json();
+        
+        document.getElementById('profile-phone').value = data.phone || '';
+        document.getElementById('profile-address').value = data.address || '';
+        document.getElementById('profile-emergency').value = data.emergencyContact || '';
+        
+        document.getElementById('profile-dept-info').innerHTML = 
+            `Your Role: <strong>${data.role || 'Unassigned'}</strong> | Department: ${data.department ? data.department.name : 'None'}`;
+            
+    } catch(e) { console.error('Error loading profile'); }
+}
+
+async function claimProfile() {
+    try {
+        const res = await fetch('/api/employees/claim', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email: currentUser.email })
+        });
+        if(res.ok) {
+            showToast('Account claimed successfully!');
+            loadProfileData();
+        } else {
+            const err = await res.json();
+            showToast(err.msg || 'Could not claim account', 'error');
+        }
+    } catch(e) { showToast('Server Error', 'error'); }
+}
+
+document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        phone: document.getElementById('profile-phone').value,
+        address: document.getElementById('profile-address').value,
+        emergencyContact: document.getElementById('profile-emergency').value
+    };
+    
+    try {
+        const res = await fetch('/api/employees/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+        });
+        if(res.ok) showToast('Profile updated');
+        else showToast('Error updating profile', 'error');
+    } catch(e) { showToast('Server Error', 'error'); }
+});
+
+
+// --- LEAVES ---
+async function loadLeavesData() {
+    try {
+        const isAdmin = currentUser.role === 'admin';
+        const url = isAdmin ? '/api/leave-requests' : '/api/leave-requests/my-requests';
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if(!res.ok) throw new Error('Fetch failed');
+        const data = await res.json();
+        
+        const tbody = document.getElementById('leave-table-body');
+        tbody.innerHTML = '';
+        
+        if (isAdmin) {
+            document.getElementById('leave-action-header').style.display = 'table-cell';
+            const btn = document.getElementById('btn-request-leave');
+            if(btn) btn.style.display = 'none';
+        }
+
+        data.forEach(req => {
+            const tr = document.createElement('tr');
+            
+            // Format dates
+            const start = new Date(req.startDate).toLocaleDateString();
+            const end = new Date(req.endDate).toLocaleDateString();
+            const name = req.employeeId ? (req.employeeId.name + ' ' + req.employeeId.surname) : (currentUser ? currentUser.name : 'Unknown');
+
+            let classStatus = 'badge-status';
+            if (req.status === 'Denied') classStatus += ' error';
+            
+            let actions = '';
+            if (isAdmin && req.status === 'Pending') {
+                actions = `
+                <td>
+                    <button class="btn btn-dark" style="padding:4px 8px; font-size:12px; margin-right:5px;" onclick="updateLeave('${req._id}', 'Approved')">Approve</button>
+                    <button class="btn" style="padding:4px 8px; font-size:12px; background: #ef4444; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="updateLeave('${req._id}', 'Denied')">Deny</button>
+                </td>`;
+            } else if (isAdmin) {
+                 actions = '<td></td>';
+            }
+
+            tr.innerHTML = `
+                <td>${escapeHtml(name)}</td>
+                <td>${escapeHtml(req.type)}</td>
+                <td>${start}</td>
+                <td>${end}</td>
+                <td><span class="${classStatus}">${escapeHtml(req.status)}</span></td>
+                ${actions}
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch(e) {  }
+}
+
+document.getElementById('leave-modal-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        type: document.getElementById('leave-type').value,
+        startDate: document.getElementById('leave-start').value,
+        endDate: document.getElementById('leave-end').value
+    };
+    
+    try {
+        const res = await fetch('/api/leave-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+        });
+        if(res.ok) {
+             showToast('Leave requested successfully');
+             closeModal('leave-modal');
+             loadLeavesData();
+        } else {
+             showToast('Error requesting leave', 'error');
+        }
+    } catch(e) { showToast('Server Error', 'error'); }
+});
+
+async function updateLeave(id, status) {
+    if(!confirm(`Are you sure you want to mark this as ${status}?`)) return;
+    try {
+        const res = await fetch(`/api/leave-requests/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ status })
+        });
+        if(res.ok) {
+             showToast(`Leave ${status}`);
+             loadLeavesData();
+        } else showToast('Error updating', 'error');
+    } catch(err) { showToast('Server Error', 'error');}
+}
+
+
+// === Phase 3 / Enterprise Features UI ===
+
+async function fetchEmployeesList() {
+    try {
+        const res = await fetch('/api/employees');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.employees || data || [];
+    } catch {
+        return [];
+    }
+}
+
+async function populateManagerSelect() {
+    const mgrSelect = document.getElementById('emp-manager');
+    if(!mgrSelect) return;
+    mgrSelect.innerHTML = '<option value="">None</option>';
+    let employees = await fetchEmployeesList();
+    if (!Array.isArray(employees)) employees = [];
+    employees.forEach(emp => {
+        mgrSelect.innerHTML += `<option value="${emp._id}">${emp.name} ${emp.surname}</option>`;
+    });
+}
+
+// Intercept openEmployeeModal
+const originalOpenEmployeeModal = window.openEmployeeModal || function(){};
+window.openEmployeeModal = async function() {
+    if(!currentUser || currentUser.role !== 'admin') return showToast('Admin access required', 'error');
+    try {
+        await populateDepartmentSelect();
+    } catch(err) { console.error('Error populating departments:', err); }
+    try {
+        await populateManagerSelect();
+    } catch(err) { console.error('Error populating managers:', err); }
+    document.getElementById('employee-modal-form').reset();
+    document.getElementById('emp-id').value = '';
+    document.getElementById('employee-modal-title').innerText = 'Add Employee';
+    openModal('employee-modal');
+};
+
+async function editEmployee(id) {
+    try {
+        const res = await fetch(`/api/employees/${id}`);
+        if (!res.ok) throw new Error('Error fetching employee');
+        const emp = await res.json();
+        
+        await populateDepartmentSelect();
+        await populateManagerSelect();
+        
+        document.getElementById('emp-id').value = emp._id;
+        document.getElementById('emp-name').value = emp.name || '';
+        document.getElementById('emp-surname').value = emp.surname || '';
+        document.getElementById('emp-email').value = emp.email || '';
+        document.getElementById('emp-phone').value = emp.phone || '';
+        document.getElementById('emp-department').value = emp.department ? emp.department._id : '';
+        document.getElementById('emp-manager').value = emp.managerId || '';
+        document.getElementById('emp-role').value = emp.position || '';
+        document.getElementById('emp-status').value = emp.status || 'active';
+        
+        document.getElementById('employee-modal-title').innerText = 'Edit Employee';
+        openModal('employee-modal');
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// Docs
+async function initDocumentsPage() {
+    const select = document.getElementById('doc-employee');
+    const employees = await fetchEmployeesList();
+    select.innerHTML = '<option value="">Select Employee...</option>';
+    employees.forEach(emp => {
+        select.innerHTML += `<option value="${emp._id}">${emp.name} ${emp.surname}</option>`;
+    });
+    select.onchange = loadDocuments;
+
+    document.getElementById('document-upload-form').onsubmit = handleDocUpload;
+}
+
+async function loadDocuments() {
+    const tbody = document.getElementById('documents-table-body');
+    const empId = document.getElementById('doc-employee').value;
+    if (!empId) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Select an employee above to view their documents.</td></tr>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/documents/${empId}`);
+        const docs = await res.json();
+        
+        if (!docs || docs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No documents found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = docs.map(doc => `
+            <tr>
+                <td>${doc.name}</td>
+                <td>${doc.employeeId}</td>
+                <td>${new Date(doc.createdAt).toLocaleDateString()}</td>
+                <td><a href="${doc.fileUrl}" target="_blank" class="btn btn-outline" style="padding: 2px 8px; font-size: 12px; text-decoration: none;">Download</a></td>
+            </tr>
+        `).join('');
+    } catch(err) {
+        showToast('Error loading documents');
+    }
+}
+
+async function handleDocUpload(e) {
+    e.preventDefault();
+    const file = document.getElementById('doc-file').files[0];
+    const name = document.getElementById('doc-name').value;
+    const empId = document.getElementById('doc-employee').value;
+
+    if (!empId) return showToast('Please select an employee first', 'error');
+
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('name', name);
+    formData.append('employeeId', empId);
+
+    try {
+        const res = await fetch('/api/documents/upload', {
+            method: 'POST',
+            body: formData
+        });
+        if(res.ok) {
+            showToast('Document uploaded!');
+            document.getElementById('doc-file').value = '';
+            document.getElementById('doc-name').value = '';
+            loadDocuments();
+        } else {
+            showToast('Upload failed', 'error');
+        }
+    } catch(err) {
+        showToast('Error uploading document', 'error');
+    }
+}
+
+// Org Chart Simple Renderer (Using indented lists for simplicity without importing external libs)
+async function loadOrgChart() {
+    const container = document.getElementById('org-chart-container');
+    container.innerHTML = '<div>Loading...</div>';
+    
+    try {
+        const res = await fetch('/api/admin/org-tree');
+        if(!res.ok) throw new Error('Could not load org tree');
+        const tree = await res.json();
+        
+        if(!tree || tree.length === 0) {
+            container.innerHTML = '<p>No organizational structure found. Assign managers to employees.</p>';
+            return;
+        }
+
+        const renderNode = (node) => {
+            return `
+                <div style="margin-left: 20px; border-left: 2px solid var(--border-color); padding-left: 10px; margin-bottom: 10px;">
+                    <div style="background: var(--bg-surface); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); display: inline-block; min-width: 200px;">
+                        <strong>${node.name}</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">${node.position || 'Employee'}</div>
+                    </div>
+                    ${node.children && node.children.length > 0 ? node.children.map(renderNode).join('') : ''}
+                </div>
+            `;
+        };
+
+        container.innerHTML = `<div style="text-align: left; padding: 20px;">${tree.map(renderNode).join('')}</div>`;
+    } catch (err) {
+        container.innerHTML = '<p>Error loading or you lack admin permissions.</p>';
+    }
 }

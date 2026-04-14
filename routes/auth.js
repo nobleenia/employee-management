@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
@@ -13,8 +14,7 @@ router.post(
   '/register',
   [
     check('email', 'Please include a valid email').isEmail(),
-    check('password', 'Password must be 6 or more characters').isLength({ min: 6 }),
-    check('name', 'Name is required').notEmpty(),
+    check('password', 'Password must be 6 or more characters').isLength({ min: 6 })
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -22,7 +22,13 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password } = req.body;
+    const { email, password } = req.body;
+    let { name } = req.body;
+
+    // Use email as name if not provided
+    if (!name) {
+      name = email.split('@')[0];
+    }
 
     try {
       // Check if user already exists
@@ -31,20 +37,30 @@ router.post(
         return res.status(400).json({ msg: 'User already exists' });
       }
 
-      // Create a new user instance
+      // We need an ID for the organization owner, but we don't have the user ID yet until we save.
+      // So we will first create the user without saving to get the ID
       user = new User({
         name,
         email,
-        password, // Plaintext password - Will be hashed in the `User` model's pre-save middleware
+        password,
+        role: 'admin', // The first person to register a workspace becomes the admin
       });
 
-      // Save user to the database
+      // Create an organization for this user
+      const organization = new Organization({
+        name: `${name}'s Workspace`,
+        ownerId: user._id
+      });
+      await organization.save();
+
+      // Assign organizationId to user and save
+      user.organizationId = organization._id;
       await user.save();
 
       // Generate token
       const token = jwt.sign(
-        { id: user.id, name: user.name, role: user.role }, // Include name and role in the token
-        process.env.JWT_SECRET,
+        { id: user.id, name: user.name, role: user.role, organizationId: organization._id },
+        process.env.JWT_SECRET || 'secret',
         { expiresIn: '1h' }
       );
 
@@ -52,10 +68,10 @@ router.post(
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 3600000 // 1 hour
+        maxAge: 3600000 
       });
 
-      res.json({ msg: 'Registration successful', user: { name: user.name, role: user.role } });
+      res.json({ msg: 'Registration successful', user: { name: user.name, role: user.role, organizationId: user.organizationId } });
     } catch (err) {
       console.error('Server Error:', err);
       res.status(500).json({ msg: 'Server Error' });
@@ -68,22 +84,19 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Check if the user exists
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    // Generate token
     const token = jwt.sign(
-      { id: user.id, name: user.name, role: user.role }, // Include name and role in the token
-      process.env.JWT_SECRET,
+      { id: user.id, name: user.name, role: user.role, organizationId: user.organizationId },
+      process.env.JWT_SECRET || 'secret',
       { expiresIn: '1h' }
     );
 
@@ -91,10 +104,10 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 3600000 // 1 hour
+      maxAge: 3600000
     });
 
-    res.json({ msg: 'Login successful', user: { name: user.name, role: user.role } });
+    res.json({ msg: 'Login successful', user: { name: user.name, role: user.role, organizationId: user.organizationId } });
   } catch (err) {
     console.error('Server Error:', err.message);
     res.status(500).json({ msg: 'Server Error' });
@@ -105,23 +118,6 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ msg: 'Logged out successfully' });
-});
-
-// Make a user admin (admin-only)
-router.put('/make-admin/:id', authenticate, authorize('admin'), async (req, res) => {
-  try {
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role: 'admin' },
-      { new: true }
-    );
-    if (!user) {
-      return res.status(404).json({ msg: 'User not found' });
-    }
-    res.json({ msg: `${user.name} is now an admin.` });
-  } catch (err) {
-    res.status(500).json({ msg: 'Server Error' });
-  }
 });
 
 module.exports = router;

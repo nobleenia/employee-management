@@ -1,37 +1,38 @@
 const express = require('express');
 const router = express.Router();
+const authenticate = require('../middleware/auth');
 const Employee = require('../models/Employee');
 const Department = require('../models/Department');
 const ActivityLog = require('../models/ActivityLog');
 
-// Get dashboard KPIs and recent activity
-router.get('/', async (req, res, next) => {
-  try {
-    const totalEmployees = await Employee.countDocuments();
-    const totalDepartments = await Department.countDocuments();
-    const activeEmployees = await Employee.countDocuments({ status: 'active' });
-    
-    // Count how many open roles we have - for this example, we'll mock it or base it on a query if needed later. 
-    // The prototype shows "Open Roles: 5". Let's give a mocked metric for now.
-    const openRoles = 5;
+router.get('/', authenticate, async (req, res) => {
+    try {
+        const organizationId = req.user.organizationId;
+        
+        // KPIs specific to the requested workspace
+        const totalEmployees = await Employee.countDocuments({ organizationId });
+        const totalDepartments = await Department.countDocuments({ organizationId });
+        const activeEmployees = await Employee.countDocuments({ status: 'active', organizationId });
+        const openRoles = 0; // Replace with an actual Job model down the line if needed
 
-    // Fetch the 5 most recent activities
-    const recentActivity = await ActivityLog.find()
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    res.json({
-      kpis: {
-        totalEmployees,
-        totalDepartments,
-        activeEmployees,
-        openRoles
-      },
-      recentActivity
-    });
-  } catch (err) {
-    next(err);
-  }
+        // Activity Feed matching the requested workspace
+        const recentActivity = await ActivityLog.find({ organizationId })
+                                                .sort({ createdAt: -1 })
+                                                .limit(10);
+        
+        res.json({
+            kpis: {
+                totalEmployees,
+                totalDepartments,
+                activeEmployees,
+                openRoles
+            },
+            recentActivity
+        });
+    } catch(err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server error loading dashboard' });
+    }
 });
 
 module.exports = router;

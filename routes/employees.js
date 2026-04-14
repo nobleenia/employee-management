@@ -7,7 +7,6 @@ const ActivityLog = require('../models/ActivityLog');
 const authenticate = require('../middleware/auth');
 const authorize = require('../middleware/role');
 
-// Validation Middleware
 const employeeValidation = [
   body('name').notEmpty().withMessage('Name is required').trim().escape(),
   body('surname').notEmpty().withMessage('Surname is required').trim().escape(),
@@ -29,11 +28,11 @@ const checkValidation = (req, res, next) => {
   next();
 };
 
-// Get all employees with search, filter, and pagination
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page = 1, limit = 10, department, name } = req.query;
-    const filter = {};
+    const filter = { organizationId: req.user.organizationId };
+    
     if (department) filter.department = department;
     if (name) filter.name = { $regex: name, $options: 'i' };
 
@@ -47,26 +46,59 @@ router.get('/', async (req, res, next) => {
 
     const total = await Employee.countDocuments(filter);
 
-    res.json({
-      employees,
-      total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
-    });
-  } catch (err) {
-    next(err);
-  }
+    res.json({ employees, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+  } catch (err) { next(err); }
 });
 
-// Create a new employee (admin only)
-router.post('/', authenticate, authorize('admin'), employeeValidation, checkValidation, async (req, res, next) => {
-  const { name, surname, department, email, phone, role, status } = req.body;
 
+// Claim an employee record
+router.post('/claim', authenticate, async (req, res, next) => {
   try {
-    const employee = new Employee({ name, surname, department, email, phone, role, status });
+    const userEmail = req.user.email;
+    // For simplicity, we find an employee by email that isn't claimed
+    const employee = await Employee.findOneAndUpdate(
+      { email: req.body.email, organizationId: req.user.organizationId, userId: { $exists: false } },
+      { userId: req.user.id },
+      { new: true }
+    );
+    if (!employee) return res.status(404).json({ msg: 'Employee record not found or already claimed' });
+    res.json({ msg: 'Successfully claimed employee profile', employee });
+  } catch (err) { next(err); }
+});
+
+// Get self profile
+router.get('/me', authenticate, async (req, res, next) => {
+  try {
+    const employee = await Employee.findOne({ userId: req.user.id, organizationId: req.user.organizationId })
+      .populate('department', 'name');
+    if (!employee) return res.status(404).json({ msg: 'No employee profile linked to this user' });
+    res.json(employee);
+  } catch (err) { next(err); }
+});
+
+// Update self profile
+router.put('/me', authenticate, async (req, res, next) => {
+  try {
+    const { phone, address, emergencyContact } = req.body;
+    const employee = await Employee.findOneAndUpdate(
+      { userId: req.user.id, organizationId: req.user.organizationId },
+      { phone, address, emergencyContact },
+      { new: true }
+    ).populate('department', 'name');
+    if (!employee) return res.status(404).json({ msg: 'No employee profile linked to this user' });
+    res.json(employee);
+  } catch (err) { next(err); }
+});
+
+router.post('/', authenticate, authorize('admin'), employeeValidation, checkValidation, async (req, res, next) => {
+  const { name, surname, department, email, phone, role, status, managerId } = req.body;
+  try {
+    const employee = new Employee({ 
+      name, surname, department, email, phone, role, status, managerId,
+      organizationId: req.user.organizationId 
+    });
     await employee.save();
 
-    // Fetch department for log detail
     let logDesc = `${name} ${surname} joined`;
     try {
       const deptDetails = await Department.findById(department);
@@ -76,63 +108,49 @@ router.post('/', authenticate, authorize('admin'), employeeValidation, checkVali
     await ActivityLog.create({
       action: 'Employee Added',
       description: logDesc,
-      user: req.user?.name || 'Admin User'
+      user: req.user?.name || 'Admin User',
+      organizationId: req.user.organizationId
     });
 
     res.status(201).json(employee);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
-// Update an employee (admin only)
 router.put('/:id', authenticate, authorize('admin'), employeeValidation, checkValidation, async (req, res, next) => {
-  const { name, surname, department, email, phone, role, status } = req.body;
-
+  const { name, surname, department, email, phone, role, status, managerId } = req.body;
   try {
-    const employee = await Employee.findByIdAndUpdate(
-      req.params.id,
-      { name, surname, department, email, phone, role, status },
+    const employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, organizationId: req.user.organizationId },
+      { name, surname, department, email, phone, role, status, managerId },
       { new: true }
     );
-    if (!employee) {
-      const error = new Error('Employee not found');
-      error.statusCode = 404;
-      return next(error);
-    }
+    if (!employee) return next(new Error('Employee not found'));
 
     await ActivityLog.create({
       action: 'Employee Updated',
       description: `${employee.name} ${employee.surname} updated`,
-      user: req.user?.name || 'Admin User'
+      user: req.user?.name || 'Admin User',
+      organizationId: req.user.organizationId
     });
 
     res.json(employee);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
-// Delete an employee (admin only)
 router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
   try {
-    const employee = await Employee.findByIdAndDelete(req.params.id);
-    if (!employee) {
-      const error = new Error('Employee not found');
-      error.statusCode = 404;
-      return next(error);
-    }
+    const employee = await Employee.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
+    if (!employee) return next(new Error('Employee not found'));
 
     await ActivityLog.create({
       action: 'Employee Deleted',
       description: `${employee.name} ${employee.surname} deleted`,
-      user: req.user?.name || 'Admin User'
+      user: req.user?.name || 'Admin User',
+      organizationId: req.user.organizationId
     });
 
     res.json({ msg: 'Employee deleted successfully' });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
